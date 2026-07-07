@@ -1,30 +1,37 @@
 from tools.data_loader import DataLoader
 
-loader = DataLoader()
 
-try:
+def main():
 
-    df = loader.load_file("data/sample.csv")
+    loader = DataLoader()
 
-    print(loader.validate_file(df))
+    try:
+        # Load and validate dataset
+        df = loader.load_file("data/sample.csv")
 
-    print("\n========== BASIC INFORMATION ==========\n")
+        print("Dataset validation successful.")
 
-    info = loader.get_basic_info(df)
+        print("\n========== BASIC INFORMATION ==========\n")
 
-    for key, value in info.items():
-        print(f"{key}: {value}")
+        info = loader.get_basic_info(df)
 
-    print("\n========== MISSING VALUES ==========\n")
+        for key, value in info.items():
+            print(f"{key}: {value}")
 
-    print(loader.count_missing_values(df))
+        print("\n========== MISSING VALUES ==========\n")
 
-    print("\n========== COLUMN TYPES ==========\n")
+        print(loader.count_missing_values(df))
 
-    column_types = loader.detect_column_types(df)
+        print("\n========== COLUMN TYPES ==========\n")
 
-    for column, column_type in column_types.items():
-        print(f"{column}: {column_type}")
+        column_types = loader.detect_column_types(df)
 
-except Exception as e:
-    print(e)
+        for column, column_type in column_types.items():
+            print(f"{column}: {column_type}")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    main()
