@@ -4,8 +4,7 @@ from pathlib import Path
 
 class DataLoader:
     """
-    DataLoader class for loading, validating datasets,
-    and performing basic dataset inspection.
+    Loads and validates CSV/Excel datasets.
     """
 
     def load_file(self, file_path):
@@ -54,17 +53,15 @@ class DataLoader:
         except Exception as e:
             raise ValueError(f"Unable to read file: {e}")
 
-        # Remove extra spaces from column names
         df.columns = df.columns.str.strip()
 
-        # Check duplicate column names
         if df.columns.duplicated().any():
             duplicates = list(df.columns[df.columns.duplicated()])
+
             raise ValueError(
                 f"Duplicate column names found: {duplicates}"
             )
 
-        # Automatically validate dataset
         self.validate_file(df)
 
         return df
@@ -72,130 +69,18 @@ class DataLoader:
     def validate_file(self, df):
 
         if not isinstance(df, pd.DataFrame):
-            raise TypeError("Loaded object is not a pandas DataFrame.")
+            raise TypeError(
+                "Loaded object is not a pandas DataFrame."
+            )
 
         if df.empty:
-            raise ValueError("Dataset is empty.")
+            raise ValueError(
+                "Dataset is empty."
+            )
 
         if len(df.columns) == 0:
-            raise ValueError("Dataset contains no columns.")
+            raise ValueError(
+                "Dataset contains no columns."
+            )
 
         return "Dataset validation successful."
-
-    def get_basic_info(self, df):
-
-        self.validate_file(df)
-
-        info = {
-            "Rows": df.shape[0],
-            "Columns": df.shape[1],
-            "Shape": df.shape,
-            "Column Names": list(df.columns),
-            "Data Types": df.dtypes.astype(str).to_dict(),
-            "Memory Usage (KB)": round(
-                df.memory_usage(deep=True).sum() / 1024,
-                2
-            )
-        }
-
-        return info
-
-    def count_missing_values(self, df):
-
-        self.validate_file(df)
-
-        missing = pd.DataFrame({
-            "Missing Values": df.isnull().sum(),
-            "Missing Percentage": round(
-                df.isnull().mean() * 100,
-                2
-            )
-        })
-
-        return missing
-
-    def detect_column_types(self, df):
-
-        self.validate_file(df)
-
-        column_types = {}
-
-        identifier_keywords = [
-            "id",
-            "code",
-            "number",
-            "uuid",
-            "key",
-            "serial"
-        ]
-
-        date_keywords = [
-            "date",
-            "time",
-            "dob",
-            "birth",
-            "join",
-            "created",
-            "updated"
-        ]
-
-        for column in df.columns:
-
-            column_name = column.lower()
-            series = df[column]
-
-            unique_ratio = series.nunique(dropna=True) / max(len(series), 1)
-
-            # Identifier (before numeric)
-            if (
-                any(keyword in column_name for keyword in identifier_keywords)
-                and unique_ratio > 0.90
-            ):
-                column_types[column] = "Identifier"
-
-            # Boolean
-            elif pd.api.types.is_bool_dtype(series):
-                column_types[column] = "Boolean"
-
-            # Datetime dtype
-            elif pd.api.types.is_datetime64_any_dtype(series):
-                column_types[column] = "Date"
-
-            # Date from column name + values
-            elif any(keyword in column_name for keyword in date_keywords):
-
-                converted = pd.to_datetime(series, errors="coerce")
-
-                if converted.notna().mean() > 0.80:
-                    column_types[column] = "Date"
-                else:
-                    column_types[column] = "Text"
-
-            # Numeric
-            elif pd.api.types.is_numeric_dtype(series):
-                column_types[column] = "Numeric"
-
-            # String columns
-            elif (
-                pd.api.types.is_object_dtype(series)
-                or pd.api.types.is_string_dtype(series)
-            ):
-
-                unique_count = series.nunique(dropna=True)
-
-                if unique_count <= 20:
-                    column_types[column] = "Categorical"
-                elif unique_ratio <= 0.30:
-                    column_types[column] = "Categorical"
-                else:
-                    column_types[column] = "Text"
-
-            # Fallback
-            else:
-
-                if unique_ratio <= 0.30:
-                    column_types[column] = "Categorical"
-                else:
-                    column_types[column] = "Text"
-
-        return column_types
