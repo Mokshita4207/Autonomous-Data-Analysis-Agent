@@ -1,37 +1,87 @@
 from tools.data_loader import DataLoader
+import pandas as pd
 
 
-def main():
+def dataset_report(df):
 
-    loader = DataLoader()
+    print("\nDataset validation successful.\n")
 
-    try:
-        # Load and validate dataset
-        df = loader.load_file("data/sample.csv")
+    print("========== BASIC INFORMATION ==========\n")
 
-        print("Dataset validation successful.")
+    print(f"Rows: {df.shape[0]}")
+    print(f"Columns: {df.shape[1]}")
+    print(f"Shape: {df.shape}")
+    print(f"Column Names: {list(df.columns)}")
 
-        print("\n========== BASIC INFORMATION ==========\n")
+    dtype_dict = {}
 
-        info = loader.get_basic_info(df)
+    for column in df.columns:
 
-        for key, value in info.items():
-            print(f"{key}: {value}")
+        if pd.api.types.is_numeric_dtype(df[column]):
 
-        print("\n========== MISSING VALUES ==========\n")
+            dtype_dict[column] = str(df[column].dtype)
 
-        print(loader.count_missing_values(df))
+        else:
 
-        print("\n========== COLUMN TYPES ==========\n")
+            dtype_dict[column] = "str"
 
-        column_types = loader.detect_column_types(df)
+    print(f"Data Types: {dtype_dict}")
 
-        for column, column_type in column_types.items():
-            print(f"{column}: {column_type}")
+    memory = round(
 
-    except Exception as e:
-        print(f"Error: {e}")
+        df.memory_usage(
+            deep=True
+        ).sum() / 1024,
+
+        2
+
+    )
+
+    print(f"Memory Usage (KB): {memory}")
+
+    print("\n========== CURRENT MISSING VALUES ==========\n")
+
+    missing = pd.DataFrame({
+
+        "Missing Values":
+            df.isnull().sum(),
+
+        "Missing Percentage":
+            round(
+                (df.isnull().sum() / len(df)) * 100,
+                2
+            )
+
+    })
+
+    print(missing)
+
+    print("\n========== COLUMN TYPES ==========\n")
+
+    for column in df.columns:
+
+        if pd.api.types.is_numeric_dtype(df[column]):
+
+            print(f"{column}: Numeric")
+
+        elif pd.api.types.is_datetime64_any_dtype(df[column]):
+
+            print(f"{column}: DateTime")
+
+        elif df[column].nunique() <= max(
+            20,
+            len(df) * 0.2
+        ):
+
+            print(f"{column}: Categorical")
+
+        else:
+
+            print(f"{column}: Text")
 
 
-if __name__ == "__main__":
-    main()
+loader = DataLoader()
+
+df = loader.load_file("data/sample.csv")
+
+dataset_report(df)

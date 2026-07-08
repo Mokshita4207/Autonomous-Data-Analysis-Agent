@@ -4,8 +4,7 @@ from pathlib import Path
 
 class DataLoader:
     """
-    DataLoader class for loading, validating datasets,
-    and performing basic dataset inspection.
+    Loads and validates CSV/Excel datasets.
     """
 
     def load_file(self, file_path):
@@ -13,7 +12,9 @@ class DataLoader:
         file_path = Path(file_path)
 
         if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
+            raise FileNotFoundError(
+                f"File not found: {file_path}"
+            )
 
         extension = file_path.suffix.lower()
 
@@ -29,12 +30,22 @@ class DataLoader:
                 ]
 
                 for encoding in encodings:
+
                     try:
-                        df = pd.read_csv(file_path, encoding=encoding)
+
+                        df = pd.read_csv(
+                            file_path,
+                            encoding=encoding
+                        )
+
                         break
+
                     except UnicodeDecodeError:
+
                         continue
+
                 else:
+
                     raise ValueError(
                         "Unable to read CSV using supported encodings."
                     )
@@ -44,158 +55,131 @@ class DataLoader:
                 df = pd.read_excel(file_path)
 
             else:
+
                 raise ValueError(
                     "Only CSV and Excel files are supported."
                 )
 
         except pd.errors.EmptyDataError:
-            raise ValueError("The uploaded file is empty.")
+
+            raise ValueError(
+                "The uploaded file is empty."
+            )
 
         except Exception as e:
-            raise ValueError(f"Unable to read file: {e}")
 
-        # Remove extra spaces from column names
+            raise ValueError(
+                f"Unable to read file: {e}"
+            )
+
         df.columns = df.columns.str.strip()
 
-        # Check duplicate column names
         if df.columns.duplicated().any():
-            duplicates = list(df.columns[df.columns.duplicated()])
+
+            duplicates = list(
+                df.columns[df.columns.duplicated()]
+            )
+
             raise ValueError(
                 f"Duplicate column names found: {duplicates}"
             )
 
-        # Automatically validate dataset
         self.validate_file(df)
+
+        df = self.handle_missing_data(df)
 
         return df
 
     def validate_file(self, df):
 
         if not isinstance(df, pd.DataFrame):
-            raise TypeError("Loaded object is not a pandas DataFrame.")
+
+            raise TypeError(
+                "Loaded object is not a pandas DataFrame."
+            )
 
         if df.empty:
-            raise ValueError("Dataset is empty.")
+
+            raise ValueError(
+                "Dataset is empty."
+            )
 
         if len(df.columns) == 0:
-            raise ValueError("Dataset contains no columns.")
+
+            raise ValueError(
+                "Dataset contains no columns."
+            )
 
         return "Dataset validation successful."
 
-    def get_basic_info(self, df):
+    def handle_missing_data(self, df):
 
-        self.validate_file(df)
+        print("\n========== MISSING VALUES BEFORE HANDLING ==========\n")
 
-        info = {
-            "Rows": df.shape[0],
-            "Columns": df.shape[1],
-            "Shape": df.shape,
-            "Column Names": list(df.columns),
-            "Data Types": df.dtypes.astype(str).to_dict(),
-            "Memory Usage (KB)": round(
-                df.memory_usage(deep=True).sum() / 1024,
-                2
-            )
-        }
+        before = pd.DataFrame({
 
-        return info
+            "Missing Values":
+                df.isnull().sum(),
 
-    def count_missing_values(self, df):
+            "Missing Percentage":
+                round(
+                    (df.isnull().sum() / len(df)) * 100,
+                    2
+                )
 
-        self.validate_file(df)
-
-        missing = pd.DataFrame({
-            "Missing Values": df.isnull().sum(),
-            "Missing Percentage": round(
-                df.isnull().mean() * 100,
-                2
-            )
         })
 
-        return missing
+        print(before)
 
-    def detect_column_types(self, df):
-
-        self.validate_file(df)
-
-        column_types = {}
-
-        identifier_keywords = [
-            "id",
-            "code",
-            "number",
-            "uuid",
-            "key",
-            "serial"
-        ]
-
-        date_keywords = [
-            "date",
-            "time",
-            "dob",
-            "birth",
-            "join",
-            "created",
-            "updated"
-        ]
+        filled = 0
 
         for column in df.columns:
 
-            column_name = column.lower()
-            series = df[column]
+            missing = df[column].isnull().sum()
 
-            unique_ratio = series.nunique(dropna=True) / max(len(series), 1)
+            if missing > 0:
 
-            # Identifier (before numeric)
-            if (
-                any(keyword in column_name for keyword in identifier_keywords)
-                and unique_ratio > 0.90
-            ):
-                column_types[column] = "Identifier"
+                filled += missing
 
-            # Boolean
-            elif pd.api.types.is_bool_dtype(series):
-                column_types[column] = "Boolean"
+                if pd.api.types.is_numeric_dtype(df[column]):
 
-            # Datetime dtype
-            elif pd.api.types.is_datetime64_any_dtype(series):
-                column_types[column] = "Date"
+                    df[column] = df[column].fillna(
+                        df[column].mean()
+                    )
 
-            # Date from column name + values
-            elif any(keyword in column_name for keyword in date_keywords):
-
-                converted = pd.to_datetime(series, errors="coerce")
-
-                if converted.notna().mean() > 0.80:
-                    column_types[column] = "Date"
                 else:
-                    column_types[column] = "Text"
 
-            # Numeric
-            elif pd.api.types.is_numeric_dtype(series):
-                column_types[column] = "Numeric"
+                    mode = df[column].mode()
 
-            # String columns
-            elif (
-                pd.api.types.is_object_dtype(series)
-                or pd.api.types.is_string_dtype(series)
-            ):
+                    if not mode.empty:
 
-                unique_count = series.nunique(dropna=True)
+                        df[column] = df[column].fillna(
+                            mode[0]
+                        )
 
-                if unique_count <= 20:
-                    column_types[column] = "Categorical"
-                elif unique_ratio <= 0.30:
-                    column_types[column] = "Categorical"
-                else:
-                    column_types[column] = "Text"
+                    else:
 
-            # Fallback
-            else:
+                        df[column] = df[column].fillna(
+                            "Unknown"
+                        )
 
-                if unique_ratio <= 0.30:
-                    column_types[column] = "Categorical"
-                else:
-                    column_types[column] = "Text"
+        print(f"\nMissing values handled: {filled}")
 
-        return column_types
+        print("\n========== MISSING VALUES AFTER HANDLING ==========\n")
+
+        after = pd.DataFrame({
+
+            "Missing Values":
+                df.isnull().sum(),
+
+            "Missing Percentage":
+                round(
+                    (df.isnull().sum() / len(df)) * 100,
+                    2
+                )
+
+        })
+
+        print(after)
+
+        return df
