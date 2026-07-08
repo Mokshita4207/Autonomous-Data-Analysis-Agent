@@ -143,7 +143,7 @@ class DataLoader:
 
                 if pd.api.types.is_numeric_dtype(df[column]):
 
-                    df[column] = df[column].fillna(
+                        df[column] = df[column].fillna(
                         df[column].mean()
                     )
 
