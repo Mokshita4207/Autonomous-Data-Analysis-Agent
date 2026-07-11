@@ -61,6 +61,10 @@ class CodeGeneratorAgent:
                 code = self.anomaly_code(
                     analysis_task
                 )
+            elif analysis_type == "target_relationship":
+                code = self.target_relationship_code(
+                analysis_task
+                )
 
             else:
                 code = self.llm_generate(
@@ -207,7 +211,17 @@ result = {{
     int((prediction == -1).sum())
 }}
 """
+    def target_relationship_code(self, task):
 
+        feature = task["columns"][0]
+        target = task["columns"][1]
+
+        return f"""result = {{
+        "feature": "{feature}",
+        "target": "{target}",
+        "group_mean": df.groupby("{target}")["{feature}"].mean().to_dict()
+    }}
+    """
 
     def llm_generate(self, task):
 
@@ -232,19 +246,3 @@ Requirements:
         response = self.llm.invoke(prompt)
 
         return response.content
-    
-   if __name__ == "__main__":
-
-    generator = CodeGeneratorAgent()
-
-    task = {
-        "analysis_id": "A001",
-        "analysis_type": "univariate_numeric",
-        "columns": ["age"],
-        "rationale": "Summarize age distribution",
-        "priority": 5
-    }
-
-    result = generator.generate_code(task)
-
-    print(result) 
