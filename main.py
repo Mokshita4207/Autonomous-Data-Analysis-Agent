@@ -1,63 +1,54 @@
 from tools.data_loader import DataLoader
 from tools.data_profiler import DataProfiler
 from tools.column_classifier import ColumnClassifier
-
-
-def test_dataset(file_path):
-    print("\n" + "=" * 70)
-    print(f"Testing Dataset : {file_path}")
-    print("=" * 70)
-
-    # -----------------------------
-    # Load Dataset
-    # -----------------------------
-    loader = DataLoader()
-    df = loader.load_file(file_path)
-
-    # -----------------------------
-    # Profile Dataset
-    # -----------------------------
-    profiler = DataProfiler()
-    profile = profiler.run(df)
-
-    # -----------------------------
-    # Classify Columns
-    # -----------------------------
-    classifier = ColumnClassifier()
-    classification = classifier.classify(df)
-
-    # -----------------------------
-    # Display Results
-    # -----------------------------
-    print("\n========== BASIC INFORMATION ==========\n")
-    print(profile["basic_info"])
-
-    print("\n========== MISSING VALUES ==========\n")
-    print(profile["missing_values"])
-
-    print("\n========== SUMMARY STATISTICS ==========\n")
-    print(profile["summary_statistics"])
-
-    print("\n========== DUPLICATE ROWS ==========\n")
-    print(profile["duplicate_rows"])
-
-    print("\n========== UNIQUE VALUES ==========\n")
-    print(profile["unique_values"])
-
-    print("\n========== COLUMN CLASSIFICATION ==========\n")
-
-    for column, details in classification.items():
-        print(f"{column}")
-
-        for key, value in details.items():
-            print(f"   {key}: {value}")
-
-        print()
+from agents.analysis_planner_agent import AnalysisPlannerAgent
+from tools.code_generator import CodeGeneratorAgent
+from tools.code_executor import CodeExecutor
+from agents.self_corrector import SelfCorrector
 
 
 def main():
-    # Test current dataset
-    test_dataset("data/train.csv")
+
+    loader = DataLoader()
+    df = loader.load_file("data/train.csv")
+
+    profiler = DataProfiler()
+    profile = profiler.run(df)
+
+    classifier = ColumnClassifier()
+    column_types = classifier.classify(df)
+
+    planner = AnalysisPlannerAgent()
+    tasks = planner.run(column_types, profile)
+
+    generator = CodeGeneratorAgent()
+
+    executor = CodeExecutor()
+
+    corrector = SelfCorrector()
+
+    for task in tasks:
+
+        print("\n" + "=" * 70)
+        print(f"Analysis : {task['analysis_type']}")
+        print("=" * 70)
+
+        generated_code = generator.generate_code(task)
+
+        execution = executor.run(
+            generated_code,
+            df
+        )
+
+        if execution["status"] == "Failed":
+
+            execution = corrector.run(
+                generated_code,
+                df
+            )
+
+        print("\nExecution Result:\n")
+        print(execution)
 
 
 if __name__ == "__main__":
