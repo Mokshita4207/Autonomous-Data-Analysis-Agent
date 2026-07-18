@@ -7,6 +7,7 @@ Uses predefined templates for reliability and LLM fallback for unknown tasks.
 
 import logging
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +15,6 @@ class CodeGeneratorAgent:
 
     def __init__(self, llm=None):
         self.llm = llm
-
 
     def generate_code(self, analysis_task):
 
@@ -62,18 +62,21 @@ class CodeGeneratorAgent:
                     analysis_task
                 )
 
+            elif analysis_type == "target_relationship":
+                code = self.target_relationship_code(
+                    analysis_task
+                )
+
             else:
                 code = self.llm_generate(
                     analysis_task
                 )
-
 
             return {
                 "analysis_id": analysis_task["analysis_id"],
                 "analysis_type": analysis_type,
                 "code": code
             }
-
 
         except Exception as e:
 
@@ -89,8 +92,6 @@ class CodeGeneratorAgent:
                 "error": str(e)
             }
 
-
-
     def data_quality_code(self, task):
 
         return """
@@ -99,7 +100,6 @@ result = {
     "duplicate_rows": int(df.duplicated().sum())
 }
 """
-
 
     def univariate_numeric_code(self, task):
 
@@ -116,7 +116,6 @@ result = {{
 }}
 """
 
-
     def univariate_categorical_code(self, task):
 
         col = task["columns"][0]
@@ -127,7 +126,6 @@ result = {{
     "value_counts": df["{col}"].value_counts().to_dict()
 }}
 """
-
 
     def correlation_code(self, task):
 
@@ -142,7 +140,6 @@ result = {{
 }}
 """
 
-
     def bivariate_code(self, task):
 
         c1 = task["columns"][0]
@@ -155,7 +152,6 @@ result = {{
     float(df["{c1}"].corr(df["{c2}"]))
 }}
 """
-
 
     def segment_code(self, task):
 
@@ -170,7 +166,6 @@ result = (
 )
 """
 
-
     def trend_code(self, task):
 
         date = task["columns"][0]
@@ -183,7 +178,6 @@ result = (
     .to_dict()
 )
 """
-
 
     def anomaly_code(self, task):
 
@@ -208,14 +202,27 @@ result = {{
 }}
 """
 
+    def target_relationship_code(self, task):
+
+        feature = task["columns"][0]
+        target = task["columns"][1]
+
+        return f"""
+result = {{
+    "feature": "{feature}",
+    "target": "{target}",
+    "group_mean":
+    df.groupby("{target}")["{feature}"].mean().to_dict()
+}}
+"""
 
     def llm_generate(self, task):
 
         if self.llm is None:
+
             raise Exception(
                 "No LLM available for unknown analysis"
             )
-
 
         prompt = f"""
 Generate pandas/scipy Python analysis code.
@@ -232,7 +239,8 @@ Requirements:
         response = self.llm.invoke(prompt)
 
         return response.content
-    
+
+
 if __name__ == "__main__":
 
     generator = CodeGeneratorAgent()
@@ -247,4 +255,4 @@ if __name__ == "__main__":
 
     result = generator.generate_code(task)
 
-    print(result) 
+    print(result)
