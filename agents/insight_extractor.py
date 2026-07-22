@@ -181,26 +181,45 @@ Requirements:
             if "min" in result and "max" in result:
                 insights.append(f"The wide range in {column} indicates considerable variation across records.")
         elif analysis_type == "univariate_categorical":
+
             column = result.get("column", "the category")
+            value_counts = result.get("value_counts", {})
 
-            if "top_category" in result:
-                insights.append(f"{result['top_category']} dominates {column}, indicating strong concentration.")
+            if value_counts:
+                top_category = max(value_counts, key=value_counts.get)
 
-            if "unique_count" in result:
-                insights.append(f"A high number of categories in {column} suggests diverse customer behaviour.")
+                insights.append(
+                    f"{top_category} is the most frequent category in {column}."
+                )
+
+                insights.append(
+                    f"{len(value_counts)} unique categories are present in {column}."
+                )
         elif analysis_type == "bivariate_numeric_numeric":
-            col_x = result.get("column_x", "the first variable")
-            col_y = result.get("column_y", "the second variable")
+
+            columns = result.get("columns", [])
+
+            col_x = columns[0] if len(columns) > 0 else "the first variable"
+            col_y = columns[1] if len(columns) > 1 else "the second variable"
 
             if "correlation" in result:
                 label = self._describe_correlation(result["correlation"])
-                insights.append(f"{label} suggests {col_x} and {col_y} tend to move together.")
-        elif analysis_type == "correlation_matrix":
-            if "strongest_positive" in result:
-                insights.append(f"{result['strongest_positive']} shows the strongest tendency to rise together.")
 
-            if "strongest_negative" in result:
-                insights.append(f"{result['strongest_negative']} shows an inverse relationship worth monitoring.")
+                insights.append(
+                    f"{label} suggests {col_x} and {col_y} tend to move together."
+                )
+        elif analysis_type == "correlation_matrix":
+
+            corr = result.get("correlation_matrix", {})
+
+            if corr:
+                insights.append(
+                    "The correlation matrix was generated successfully and summarizes relationships among numeric variables."
+                )
+
+                insights.append(
+                    "Positive values indicate variables moving together, while negative values indicate inverse relationships."
+                )
         elif analysis_type == "segment_comparison":
             if "top_segment" in result:
                 insights.append(f"{result['top_segment']} is the dominant segment, driving the largest share of performance.")
@@ -221,9 +240,19 @@ Requirements:
                 else:
                     insights.append("A notable number of anomalies were detected, suggesting a data quality risk.")
         elif analysis_type == "target_relationship":
-            if "strongest_feature" in result:
-                insights.append(f"{result['strongest_feature']} is the strongest driver of the target outcome.")
 
+            feature = result.get("feature")
+            target = result.get("target")
+            group_mean = result.get("group_mean")
+
+            if feature and target and group_mean:
+                insights.append(
+                    f"{feature} shows different average values across {target} groups."
+                )
+
+                insights.append(
+                    f"The relationship suggests {feature} may help distinguish target categories."
+                )
         if not insights:
             insights.append("No meaningful interpretation could be derived from this analysis.")
 

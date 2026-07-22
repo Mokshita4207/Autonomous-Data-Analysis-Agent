@@ -200,10 +200,18 @@ aggregation is needed, e.g. for scatter plots or heatmaps).
         elif chart_type == "bar_chart":
             if y and pd.api.types.is_numeric_dtype(df[y]):
                 group_cols = [x] + ([color] if color else [])
-                grouped = df.groupby(group_cols, dropna=False)[y].agg(agg).reset_index()
+                grouped = (
+                    df.groupby(group_cols, dropna=False)
+                    .agg(value=(y, agg))
+                    .reset_index()
+                )
+
                 fig = px.bar(
-                    grouped, x=x, y=y, color=color,
-                    title=title or f"{agg.title()} of {y} by {x}",
+                    grouped,
+                    x=x,
+                    y="value",
+                    color=color,
+                    title=title or f"{agg.title()} of {y} by {x}"
                 )
             elif y:
                 cross = pd.crosstab(df[x], df[y]).reset_index().melt(id_vars=x, var_name=y, value_name="count")
@@ -226,12 +234,21 @@ aggregation is needed, e.g. for scatter plots or heatmaps).
             )
 
         elif chart_type == "box_plot":
-            num_col = y if pd.api.types.is_numeric_dtype(df[y]) else x
-            group_col = x if num_col == y else y
+
+            if y and y in df.columns and pd.api.types.is_numeric_dtype(df[y]):
+                num_col = y
+                group_col = x
+            else:
+                num_col = x
+                group_col = y
+
             fig = px.box(
-                df, x=group_col, y=num_col, color=color,
+                df,
+                x=group_col,
+                y=num_col,
+                color=color,
                 title=title or f"{num_col} across {group_col}",
-            )
+    )
 
         elif chart_type == "line_chart":
             temp = df[[x, y] + ([color] if color else [])].copy()
